@@ -5,7 +5,7 @@ from __future__ import annotations
 import networkx as nx
 
 
-SUPPORTED_FAMILIES = ("er", "ba")
+SUPPORTED_FAMILIES = ("er", "ba", "ws")
 
 
 def make_graph(
@@ -32,6 +32,17 @@ def make_graph(
             return nx.empty_graph(n)
         attachment_edges = max(1, min(n - 1, round(average_degree / 2)))
         return nx.barabasi_albert_graph(n=n, m=attachment_edges, seed=seed)
+
+    if family == "ws":
+        if n < 3:
+            return nx.empty_graph(n)
+        neighbor_degree = int(2 * round(average_degree / 2))
+        neighbor_degree = max(2, min(neighbor_degree, n - 1))
+        if neighbor_degree % 2:
+            neighbor_degree -= 1
+        return nx.watts_strogatz_graph(
+            n=n, k=neighbor_degree, p=0.1, seed=seed
+        )
 
     supported = ", ".join(SUPPORTED_FAMILIES)
     raise ValueError(f"Unsupported graph family {family!r}. Use one of: {supported}.")

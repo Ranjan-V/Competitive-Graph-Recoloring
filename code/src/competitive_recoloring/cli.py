@@ -6,9 +6,9 @@ import argparse
 import json
 from pathlib import Path
 
-from .experiments import run_scaling_experiment, write_records_csv
+from .experiments import run_parameter_experiment, run_scaling_experiment, write_records_csv
 from .graphs import SUPPORTED_FAMILIES, make_graph
-from .plotting import plot_potential_history, plot_scaling_summary
+from .plotting import plot_parameter_summary, plot_potential_history, plot_scaling_summary
 from .simulation import is_fixed_point, run_competitive_recoloring
 
 
@@ -40,6 +40,16 @@ def _build_parser() -> argparse.ArgumentParser:
     experiment.add_argument("--seed", type=int, default=2026)
     experiment.add_argument("--outdir", type=Path, default=Path("outputs"))
     experiment.add_argument("--verify", action="store_true", help="Recompute Phi after every accepted move.")
+
+    grid = subparsers.add_parser("grid", help="Run the theorem-aligned parameter grid.")
+    grid.add_argument("--families", nargs="+", choices=SUPPORTED_FAMILIES, default=list(SUPPORTED_FAMILIES))
+    grid.add_argument("--n-values", nargs="+", type=int, default=[100, 200, 400, 800])
+    grid.add_argument("--k-values", nargs="+", type=int, default=[2, 3, 4, 5, 8])
+    grid.add_argument("--avg-degrees", nargs="+", type=float, default=[4, 8, 12, 16])
+    grid.add_argument("--trials", type=int, default=50)
+    grid.add_argument("--seed", type=int, default=2026)
+    grid.add_argument("--outdir", type=Path, default=Path("outputs"))
+    grid.add_argument("--verify", action="store_true")
 
     return parser
 
@@ -118,6 +128,33 @@ def _run_experiment(args: argparse.Namespace) -> int:
     return 1 if failures else 0
 
 
+def _run_grid(args: argparse.Namespace) -> int:
+    records = run_parameter_experiment(
+        families=args.families,
+        n_values=args.n_values,
+        k_values=args.k_values,
+        average_degrees=args.avg_degrees,
+        trials=args.trials,
+        seed=args.seed,
+        verify=args.verify,
+    )
+    csv_path = write_records_csv(records, args.outdir / "data" / "parameter_results.csv")
+    figure_path = plot_parameter_summary(records, args.outdir / "figures" / "parameter_summary.png")
+    summary = {
+        "runs": len(records),
+        "nonconverged_runs": sum(not record.converged for record in records),
+        "mean_T_over_m": sum(record.steps_per_edge for record in records) / len(records),
+        "mean_T_over_phi0": sum(record.steps_per_initial_potential for record in records) / len(records),
+        "mean_phi0_over_m": sum(record.initial_potential_per_edge for record in records) / len(records),
+        "mean_A_over_nm": sum(record.activations_per_nm for record in records) / len(records),
+        "max_T_over_m": max(record.steps_per_edge for record in records),
+        "csv": str(csv_path),
+        "figure": str(figure_path),
+    }
+    print(json.dumps(summary, indent=2))
+    return 1 if summary["nonconverged_runs"] else 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
@@ -126,7 +163,8 @@ def main(argv: list[str] | None = None) -> int:
         return _run_demo(args)
     if args.command == "experiment":
         return _run_experiment(args)
+    if args.command == "grid":
+        return _run_grid(args)
 
     parser.error(f"Unknown command {args.command!r}.")
     return 2
-

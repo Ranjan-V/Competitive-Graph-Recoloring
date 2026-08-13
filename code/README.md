@@ -1,12 +1,14 @@
-# Competitive Graph Recoloring Code
+# Degree-Corrected Energy Relaxation Bounds for Competitive Recoloring on Complex Networks
 
-This folder contains a reproducible Python package for the computational part of the AML letter. It simulates strict best-response recoloring on sparse graph families and records the Lyapunov potential
+This folder contains the reproducible Python package for the computational part of the CS&F Short Communication. It simulates strict best-response recoloring on sparse graph families and records the Lyapunov potential
 
 ```text
 Phi = number of monochromatic edges.
 ```
 
-The bound `recolor_steps <= |E|` applies to accepted recoloring moves. The code also records sweeps and node evaluations separately, because those are scheduler costs rather than Lyapunov-decreasing moves.
+The bound `recolor_steps <= |E|` applies to accepted recoloring moves. The
+theorem-aligned scheduler also records all independent uniform vertex
+activations, including rejected moves.
 
 ## Setup
 
@@ -51,7 +53,41 @@ outputs/data/scaling_results.csv
 outputs/figures/steps_vs_edges.png
 ```
 
-The plot overlays the deterministic edge bound `y = |E|`, trial scatter points, family means, and a scaled `n log n` visual guide for sparse graphs.
+## Parameter Study
+
+The systematic study used in the manuscript is reproduced by:
+
+```powershell
+python run_experiments.py grid --families er ba ws --n-values 100 200 400 800 --k-values 2 3 4 5 8 --avg-degrees 4 8 12 16 --trials 40 --seed 2026
+```
+
+It writes the trial-level CSV and the three-panel publication figure to
+`outputs/data/parameter_results.csv` and
+`outputs/figures/parameter_summary.png`.
+
+## Degree-Corrected Relaxation Replay
+
+The frozen 9,600-row grid can be replayed without changing the raw CSV:
+
+```powershell
+python replay_relaxation.py --input outputs/data/parameter_results.csv --output outputs/data/relaxation_replay.csv
+python plot_relaxation.py --input outputs/data/relaxation_replay.csv --output outputs/figures/relaxation_validation.png
+```
+
+The replay fails on the first discrepancy in graph statistics, initial or final
+potential, accepted moves, or activations. The separate output adds `H`, `W`,
+`X0`, `tau_H`, `B_H`, maximum degree, and the `k > Delta` indicator.
+
+The frozen inputs and outputs used for the manuscript are stored at:
+
+```text
+outputs/data/parameter_results.csv
+outputs/data/relaxation_replay.csv
+```
+
+All graph, initialization, activation, and tie-breaking randomness is
+deterministic from the recorded `seed` field. The main reproducibility outputs
+are the replay CSV and `outputs/figures/relaxation_validation.png`.
 
 ## Tests
 
@@ -59,5 +95,5 @@ The plot overlays the deterministic edge bound `y = |E|`, trial scatter points, 
 python -m unittest discover -s tests
 ```
 
-The tests check deterministic seeding, strict Lyapunov decrease, the fixed-point condition, and the accepted-move edge bound.
-
+The tests check deterministic seeding, strict Lyapunov decrease, fixed points,
+the accepted-move edge bound, and the degree-corrected threshold diagnostics.

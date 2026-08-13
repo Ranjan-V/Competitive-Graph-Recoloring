@@ -11,6 +11,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import numpy as np
 
 from .experiments import ExperimentRecord
 
@@ -44,7 +45,7 @@ def plot_scaling_summary(
     records: Iterable[ExperimentRecord],
     path: str | Path,
     *,
-    show_n_log_n_guide: bool = True,
+    show_n_log_n_guide: bool = False,
 ) -> Path:
     """Plot accepted recolorings against the deterministic |E| bound."""
 
@@ -58,7 +59,7 @@ def plot_scaling_summary(
     for record in records:
         grouped[record.family].append(record)
 
-    fig, ax = plt.subplots(figsize=(6.6, 4.5), constrained_layout=True)
+    fig, ax = plt.subplots(figsize=(7.2, 3.0), constrained_layout=True)
     palette = {
         "er": "#1f77b4",
         "ba": "#d62728",
@@ -88,7 +89,7 @@ def plot_scaling_summary(
                 n,
                 mean(record.m for record in group),
                 mean(record.recolor_steps for record in group),
-                mean(record.n_log_n for record in group),
+                0.0,
             )
             for n, group in sorted(by_n.items())
         ]
@@ -120,7 +121,84 @@ def plot_scaling_summary(
     ax.set_xlim(left=0)
     ax.set_ylim(bottom=0)
     ax.grid(True, alpha=0.25)
-    ax.legend(frameon=False, fontsize=8)
+    ax.legend(frameon=False, fontsize=7, ncol=2)
     fig.savefig(output_path, dpi=220)
+    plt.close(fig)
+    return output_path
+
+
+def plot_parameter_summary(
+    records: Iterable[ExperimentRecord], path: str | Path
+) -> Path:
+    """Create a compact three-panel summary with 95% confidence intervals."""
+
+    records = list(records)
+    if not records:
+        raise ValueError("No experiment records to plot.")
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    palette = {"er": "#1769aa", "ba": "#c43c39", "ws": "#238b57"}
+
+    def summarize(groups, value):
+        output = []
+        for x, group in sorted(groups.items()):
+            values = np.asarray([value(item) for item in group], dtype=float)
+            ci = 1.96 * values.std(ddof=1) / np.sqrt(len(values)) if len(values) > 1 else 0.0
+            output.append((x, float(values.mean()), float(ci)))
+        return output
+
+    fig, axes = plt.subplots(1, 3, figsize=(7.25, 2.35), constrained_layout=True)
+    for family in ("er", "ba", "ws"):
+        family_records = [r for r in records if r.family == family]
+
+        by_k = defaultdict(list)
+        for record in family_records:
+            by_k[record.k_colors].append(record)
+        values = summarize(by_k, lambda r: r.steps_per_edge)
+        axes[0].errorbar(
+            [x for x, _, _ in values], [y for _, y, _ in values],
+            yerr=[ci for _, _, ci in values], marker="o", ms=3,
+            lw=1.1, capsize=2, color=palette[family], label=family.upper(),
+        )
+
+        baseline = [r for r in family_records if r.k_colors == 3 and r.average_degree == 8]
+        by_n = defaultdict(list)
+        for record in baseline:
+            by_n[record.n].append(record)
+        values = summarize(by_n, lambda r: r.steps_per_edge)
+        axes[1].errorbar(
+            [x for x, _, _ in values], [y for _, y, _ in values],
+            yerr=[ci for _, _, ci in values], marker="o", ms=3,
+            lw=1.1, capsize=2, color=palette[family], label=family.upper(),
+        )
+
+        density = [r for r in family_records if r.k_colors == 3]
+        by_degree = defaultdict(list)
+        for record in density:
+            by_degree[record.average_degree].append(record)
+        values = summarize(by_degree, lambda r: r.steps_per_edge)
+        axes[2].errorbar(
+            [x for x, _, _ in values], [y for _, y, _ in values],
+            yerr=[ci for _, _, ci in values], marker="o", ms=3,
+            lw=1.1, capsize=2, color=palette[family], label=family.upper(),
+        )
+
+    k_values = sorted({record.k_colors for record in records})
+    axes[0].plot(
+        k_values, [1 / k for k in k_values], color="#333333", ls="--",
+        lw=1.0, label="bound $1/k$",
+    )
+
+    axes[0].set_xlabel("Number of colors $k$")
+    axes[1].set_xlabel(r"Vertices $n$ ($k=3$, $\bar d=8$)")
+    axes[2].set_xlabel(r"Target mean degree $\bar d$ ($k=3$)")
+    axes[0].set_ylabel("Mean accepted moves $T/|E|$")
+    for label, ax in zip(("(a)", "(b)", "(c)"), axes):
+        ax.text(0.03, 0.94, label, transform=ax.transAxes, va="top", fontweight="bold")
+        ax.grid(True, alpha=0.22, linewidth=0.6)
+        ax.set_ylim(bottom=0)
+        ax.tick_params(labelsize=7)
+    axes[0].legend(frameon=False, fontsize=6.5, ncol=2)
+    fig.savefig(output_path, dpi=300)
     plt.close(fig)
     return output_path

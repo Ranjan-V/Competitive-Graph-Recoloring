@@ -8,6 +8,7 @@ number of monochromatic edges.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import fsum
 from typing import Hashable, Mapping
 
 import networkx as nx
@@ -27,10 +28,18 @@ class RecoloringResult:
     recolor_steps: int
     sweeps: int
     node_evaluations: int
+    activation_count: int
     initial_potential: int
     final_potential: int
     potential_history: tuple[int, ...]
     converged: bool
+    max_degree: int = 0
+    threshold_h: int = 0
+    weight_w: int = 0
+    excess_x0: int = 0
+    parity_epsilon: int = 0
+    threshold_activation_count: int | None = None
+    relaxation_bound: float = 0.0
 
     @property
     def edge_bound_gap(self) -> int:
@@ -67,6 +76,40 @@ def global_potential(graph: nx.Graph, colors: Mapping[Hashable, int]) -> int:
     """Count monochromatic/conflicting edges."""
 
     return sum(1 for u, v in graph.edges() if colors[u] == colors[v])
+
+
+def relaxation_parameters(
+    graph: nx.Graph,
+    k_colors: int,
+    initial_potential: int,
+) -> tuple[int, int, int, int, int, float]:
+    """Return ``(Delta, H, W, X0, epsilon, B_H)`` for Theorem 1."""
+
+    _validate_color_count(k_colors)
+    degrees = [degree for _, degree in graph.degree()]
+    max_degree = max(degrees, default=0)
+    floors = [degree // k_colors for degree in degrees]
+    floor_sum = sum(floors)
+    threshold_h = floor_sum // 2
+    weight_w = max(
+        (degree - floor for degree, floor in zip(degrees, floors)),
+        default=0,
+    )
+    excess_x0 = max(initial_potential - threshold_h, 0)
+    parity_epsilon = floor_sum - 2 * threshold_h
+    harmonic_factor = fsum(
+        1.0 / (2 * level - parity_epsilon)
+        for level in range(1, excess_x0 + 1)
+    )
+    relaxation_bound = graph.number_of_nodes() * weight_w * harmonic_factor
+    return (
+        max_degree,
+        threshold_h,
+        weight_w,
+        excess_x0,
+        parity_epsilon,
+        relaxation_bound,
+    )
 
 
 def count_conflicts(
@@ -223,6 +266,7 @@ def run_competitive_recoloring(
         recolor_steps=recolor_steps,
         sweeps=sweeps,
         node_evaluations=node_evaluations,
+        activation_count=node_evaluations,
         initial_potential=initial_phi,
         final_potential=phi,
         potential_history=tuple(potential_history),
@@ -230,3 +274,106 @@ def run_competitive_recoloring(
     )
     return result, colors
 
+
+def run_uniform_activation_recoloring(
+    graph: nx.Graph,
+    k_colors: int,
+    *,
+    seed: int | None = None,
+    initial_colors: Mapping[Hashable, int] | None = None,
+    verify: bool = False,
+) -> tuple[RecoloringResult, Coloring]:
+    """Run independent uniform vertex activations until the first fixed point.
+
+    Rejected activations are counted, while ``recolor_steps`` counts only
+    accepted strict improvements. An incrementally maintained set of improving
+    vertices permits exact fixed-point detection without an extra audit sweep.
+    """
+
+    _validate_color_count(k_colors)
+    generator = _rng(seed)
+    nodes = list(graph.nodes())
+    colors = (
+        dict(initial_colors)
+        if initial_colors is not None
+        else {node: int(generator.integers(0, k_colors)) for node in nodes}
+    )
+    if set(colors) != set(nodes):
+        raise ValueError("initial_colors must define exactly one color per node.")
+
+    phi = global_potential(graph, colors)
+    initial_phi = phi
+    (
+        max_degree,
+        threshold_h,
+        weight_w,
+        excess_x0,
+        parity_epsilon,
+        relaxation_bound,
+    ) = relaxation_parameters(graph, k_colors, initial_phi)
+    history = [phi]
+    improving = {
+        node
+        for node in nodes
+        if best_response(graph, colors, node, k_colors)[0] != colors[node]
+    }
+    steps = 0
+    activations = 0
+    threshold_activations = 0 if phi <= threshold_h else None
+
+    while improving:
+        node = nodes[int(generator.integers(0, len(nodes)))]
+        activations += 1
+        if node not in improving:
+            continue
+
+        best_color, old_conflicts, new_conflicts = best_response(
+            graph, colors, node, k_colors
+        )
+        if best_color == colors[node]:
+            improving.discard(node)
+            continue
+
+        delta_phi = new_conflicts - old_conflicts
+        if delta_phi >= 0:
+            raise RuntimeError("Accepted recoloring did not reduce potential.")
+        colors[node] = best_color
+        phi += delta_phi
+        steps += 1
+        history.append(phi)
+        if threshold_activations is None and phi <= threshold_h:
+            threshold_activations = activations
+
+        affected = set(graph.neighbors(node))
+        affected.add(node)
+        for affected_node in affected:
+            if best_response(graph, colors, affected_node, k_colors)[0] == colors[affected_node]:
+                improving.discard(affected_node)
+            else:
+                improving.add(affected_node)
+
+        if verify and global_potential(graph, colors) != phi:
+            raise RuntimeError("Incremental potential disagrees with exact potential.")
+
+    result = RecoloringResult(
+        n=graph.number_of_nodes(),
+        m=graph.number_of_edges(),
+        k_colors=k_colors,
+        seed=seed,
+        recolor_steps=steps,
+        sweeps=0,
+        node_evaluations=activations,
+        activation_count=activations,
+        initial_potential=initial_phi,
+        final_potential=phi,
+        potential_history=tuple(history),
+        converged=True,
+        max_degree=max_degree,
+        threshold_h=threshold_h,
+        weight_w=weight_w,
+        excess_x0=excess_x0,
+        parity_epsilon=parity_epsilon,
+        threshold_activation_count=threshold_activations,
+        relaxation_bound=relaxation_bound,
+    )
+    return result, colors

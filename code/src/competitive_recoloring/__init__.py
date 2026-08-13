@@ -1,4 +1,4 @@
-"""Competitive graph recoloring simulations for AML-style experiments."""
+"""Competitive graph recoloring simulations for network-dynamics experiments."""
 
 from .graphs import make_graph
 from .simulation import (
@@ -8,7 +8,9 @@ from .simulation import (
     global_potential,
     is_fixed_point,
     random_coloring,
+    relaxation_parameters,
     run_competitive_recoloring,
+    run_uniform_activation_recoloring,
 )
 
 __all__ = [
@@ -19,6 +21,7 @@ __all__ = [
     "is_fixed_point",
     "make_graph",
     "random_coloring",
+    "relaxation_parameters",
     "run_competitive_recoloring",
+    "run_uniform_activation_recoloring",
 ]
-
