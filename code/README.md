@@ -118,6 +118,35 @@ The script validates the expected 9,600-row dataset before computing balanced
 marginal means, controlled-cell summaries, degree-heterogeneity measures, and
 two-sided 95% normal confidence intervals.
 
+## Final Statistical and Exhaustive Checks
+
+The submission-stage analysis uses the frozen replay table only. It adds
+10,000-resample percentile-bootstrap confidence intervals, publication Figure
+2, and the two supplementary tables:
+
+```powershell
+python scientific_reports_final_analysis.py `
+  --input outputs/data/relaxation_replay.csv `
+  --output-dir outputs/scientific_reports_final
+```
+
+The bootstrap uses seed `20260827`. It does not rerun, append, or alter any
+stochastic trajectory. The output directory contains `Figure_2.png`,
+`Figure_2.eps`, `Supplementary_Table_S1.csv`,
+`Supplementary_Table_S2.csv`, and `bootstrap_summary.json`.
+
+The theorem inequality and equilibrium-energy ceiling can also be checked by
+exhaustive enumeration of all colorings with two or three colors on every
+connected non-isomorphic simple graph with two to five vertices:
+
+```powershell
+python exhaustive_small_graph_check.py `
+  --output outputs/scientific_reports_final/exhaustive_check.json
+```
+
+The archived release associated with the manuscript is available at
+https://doi.org/10.5281/zenodo.22116965.
+
 ## Tests
 
 ```powershell
