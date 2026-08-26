@@ -1,0 +1,33 @@
+{
+  "ci95_tau_h": 3.900144842933754,
+  "ci95_tau_over_b": 0.0004621461678847131,
+  "controlled_cells": 240,
+  "family_mean_b_h": {
+    "ba": 68934.31034563761,
+    "er": 16032.19389629842,
+    "ws": 10299.036485511922
+  },
+  "family_mean_degree_variance": {
+    "ba": 73.9502859375,
+    "er": 9.360003625,
+    "ws": 0.9435453125000001
+  },
+  "family_mean_tau_h": {
+    "ba": 86.0084375,
+    "er": 84.955625,
+    "ws": 112.82125
+  },
+  "family_mean_w": {
+    "ba": 49.325625,
+    "er": 14.3721875,
+    "ws": 9.7846875
+  },
+  "high_palette_mean_absorption_time": 1003.35,
+  "high_palette_mean_certificate": 6427.9152810006,
+  "high_palette_runs": 160,
+  "largest_controlled_cell_ratio": 0.16458092232049487,
+  "mean_b_h": 31755.180242482653,
+  "mean_tau_h": 94.59510416666667,
+  "mean_tau_over_b": 0.009574427481475372,
+  "trajectories": 9600
+}

@@ -1,6 +1,10 @@
-# Degree-Corrected Energy Relaxation Bounds for Competitive Recoloring on Complex Networks
+# Competitive Graph Recoloring: Reproducibility Package
 
-This folder contains the reproducible Python package for the computational part of the CS&F Short Communication. It simulates strict best-response recoloring on sparse graph families and records the Lyapunov potential
+This repository contains the simulation, deterministic replay, analysis, and
+figure-generation code for the research article *Degree-Corrected Energy
+Relaxation Bounds for Competitive Recoloring on Complex Networks*. It simulates
+strict best-response recoloring on sparse graph families and records the
+Lyapunov potential
 
 ```text
 Phi = number of monochromatic edges.
@@ -88,6 +92,31 @@ outputs/data/relaxation_replay.csv
 All graph, initialization, activation, and tie-breaking randomness is
 deterministic from the recorded `seed` field. The main reproducibility outputs
 are the replay CSV and `outputs/figures/relaxation_validation.png`.
+
+## Scientific Reports Analysis
+
+Figure 2 and its descriptive summaries are generated directly from the frozen
+replay table; this command does not rerun any stochastic trajectory:
+
+```powershell
+python scientific_reports_analysis.py `
+  --input outputs/data/relaxation_replay.csv `
+  --output-dir outputs/scientific_reports
+```
+
+It produces:
+
+```text
+outputs/scientific_reports/figure_2_structural_determinants.png
+outputs/scientific_reports/figure_2_structural_determinants.eps
+outputs/scientific_reports/scientific_reports_group_summary.csv
+outputs/scientific_reports/scientific_reports_controlled_cells.csv
+outputs/scientific_reports/scientific_reports_statistics.json
+```
+
+The script validates the expected 9,600-row dataset before computing balanced
+marginal means, controlled-cell summaries, degree-heterogeneity measures, and
+two-sided 95% normal confidence intervals.
 
 ## Tests
 
