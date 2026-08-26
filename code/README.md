@@ -147,6 +147,34 @@ python exhaustive_small_graph_check.py `
 The archived release associated with the manuscript is available at
 https://doi.org/10.5281/zenodo.22116965.
 
+## Novelty and Acceptance Upgrade
+
+The upgraded manuscript uses one bootstrap convention for both main figures.
+The following command regenerates Figure 1, Figure 2, and Supplementary Tables
+S1-S2 from the unchanged frozen replay data:
+
+```powershell
+python scientific_reports_upgrade_analysis.py `
+  --input outputs/data/relaxation_replay.csv `
+  --output-dir outputs/scientific_reports_upgrade
+```
+
+The bootstrap uses 10,000 percentile resamples and seed `20260827`. Figure 1a
+is unchanged apart from being re-rendered alongside the new Figure 1b bootstrap
+intervals.
+
+The heterogeneous-activation and finite-confidence corollaries are checked on
+small graphs with:
+
+```powershell
+python exhaustive_scheduler_check.py
+```
+
+The checker uses every coloring with `k = 2, 3` on all connected
+non-isomorphic simple graphs with two to five vertices. It tests uniform,
+degree-biased, inverse-degree-biased, and index-weighted positive activation
+vectors, as well as three geometric-tail allocations.
+
 ## Tests
 
 ```powershell

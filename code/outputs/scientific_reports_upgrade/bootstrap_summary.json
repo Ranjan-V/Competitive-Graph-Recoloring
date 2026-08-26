@@ -1,0 +1,8 @@
+{
+  "bootstrap_seed": 20260827,
+  "bootstrap_resamples": 10000,
+  "rows": 9600,
+  "controlled_cells": 240,
+  "maximum_absolute_relative_width_change": 0.023869180172067184,
+  "interpretation_changed": false
+}
